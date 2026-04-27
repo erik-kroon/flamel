@@ -1,0 +1,3 @@
+{
+  "extends": "@flamel/config/tsconfig.base.json"
+}
