@@ -30,6 +30,8 @@
   },
   "devDependencies": {
     "@flamel/config": "workspace:*",
+    "@types/node": "^25.6.0",
+    "@types/three": "^0.184.0",
     "oxfmt": "^0.46.0",
     "oxlint": "^1.61.0",
     "turbo": "^2.8.12",
