@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/solid-query";
 import { RouterProvider, createRouter } from "@tanstack/solid-router";
 import { render } from "solid-js/web";
 
@@ -5,8 +6,20 @@ import { routeTree } from "./routeTree.gen";
 
 import "./styles.css";
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
 const router = createRouter({
   routeTree,
+  context: {
+    queryClient,
+  },
   defaultPreload: "intent",
   scrollRestoration: true,
   defaultPreloadStaleTime: 0,
@@ -19,7 +32,11 @@ declare module "@tanstack/solid-router" {
 }
 
 function App() {
-  return <RouterProvider router={router} />;
+  return (
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
+  );
 }
 
 const rootElement = document.getElementById("app");

@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
 body {
   @apply bg-neutral-950 text-neutral-100;
+  margin: 0;
 }

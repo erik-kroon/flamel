@@ -1,21 +1,14 @@
+import type { QueryClient } from "@tanstack/solid-query";
 import { Outlet, createRootRouteWithContext } from "@tanstack/solid-router";
-import { TanStackRouterDevtools } from "@tanstack/solid-router-devtools";
 
-import Header from "@/components/header";
-export interface RouterContext {}
+export interface RouterContext {
+  queryClient: QueryClient;
+}
 
 export const Route = createRootRouteWithContext<RouterContext>()({
   component: RootComponent,
 });
 
 function RootComponent() {
-  return (
-    <>
-      <div class="grid grid-rows-[auto_1fr] h-svh">
-        <Header />
-        <Outlet />
-      </div>
-      <TanStackRouterDevtools />
-    </>
-  );
+  return <Outlet />;
 }
