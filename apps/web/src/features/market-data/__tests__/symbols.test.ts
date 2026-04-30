@@ -29,7 +29,9 @@ describe("symbol helpers", () => {
 
   it("validates supported symbols using one normalized rule", () => {
     expect(assertSupportedSymbol(" eric-b.st ", supportedSymbols)).toBe("ERIC-B.ST");
-    expect(() => assertSupportedSymbol(" nope ", supportedSymbols)).toThrow(MarketDataNotFoundError);
+    expect(() => assertSupportedSymbol(" nope ", supportedSymbols)).toThrow(
+      MarketDataNotFoundError,
+    );
   });
 
   it("returns structured validation results for UI callers", () => {

@@ -1,46 +1,67 @@
 import { WEB_ENV_KEYS, webEnv, type WebEnv } from "@flamel/env/web";
 
-import { type DataSource, type MarketDataProvider, type MarketDataSession } from "../types";
 import {
-  FallbackMarketDataProvider,
-  FallbackMarketDataSession,
-  ProviderMarketDataSession,
-} from "./fallback-market-data";
+  type DataSource,
+  MarketDataProviderError,
+  type MarketDataSession,
+} from "../types";
+import {
+  DatabentoExportMarketDataProvider,
+  DatabentoMarketDataProvider,
+  createDatabentoHistoricalClient,
+} from "./databento-market-data";
+import { FallbackMarketDataSession, ProviderMarketDataSession } from "./fallback-market-data";
 import { MassiveMarketDataProvider, createMassiveRestClient } from "./massive-market-data";
-import { MockMarketDataProvider } from "./mock-market-data";
 
+export const DATABENTO_API_KEY_ENV = WEB_ENV_KEYS.databentoApiKey;
+export const DATABENTO_EXPORT_URL_ENV = WEB_ENV_KEYS.databentoExportUrl;
 export const MASSIVE_API_KEY_ENV = WEB_ENV_KEYS.massiveApiKey;
+export const DEFAULT_DATABENTO_FIXTURE_URL = "/data/databento-market-data.json";
 
 export interface ProviderSelection {
-  provider: MarketDataProvider;
   session: MarketDataSession;
   configuredSource: DataSource;
-  fallbackReason?: string;
 }
 
 export function createMarketDataProvider(env: WebEnv = webEnv): ProviderSelection {
-  const apiKey = env.massiveApiKey;
+  const databentoApiKey = env.databentoApiKey;
+  const databentoExportUrl = env.databentoExportUrl;
+  const massiveApiKey = env.massiveApiKey;
 
-  if (!apiKey) {
-    const fallbackReason = `${MASSIVE_API_KEY_ENV} is not configured.`;
-    const provider = new MockMarketDataProvider();
+  if (!databentoExportUrl && !databentoApiKey && !massiveApiKey) {
+    const provider = new DatabentoExportMarketDataProvider({
+      url: DEFAULT_DATABENTO_FIXTURE_URL,
+    });
 
     return {
-      provider,
-      session: new ProviderMarketDataSession(provider, "fallback", fallbackReason),
-      configuredSource: "mock",
-      fallbackReason,
+      session: new ProviderMarketDataSession(provider, "primary"),
+      configuredSource: "databento",
     };
   }
 
-  const primary = new MassiveMarketDataProvider({
-    client: createMassiveRestClient(apiKey),
+  const primary = databentoExportUrl
+    ? new DatabentoExportMarketDataProvider({ url: databentoExportUrl })
+    : databentoApiKey
+      ? new DatabentoMarketDataProvider({
+          client: createDatabentoHistoricalClient(databentoApiKey),
+        })
+      : createMassiveProvider(massiveApiKey);
+  const fallback = new DatabentoExportMarketDataProvider({
+    url: DEFAULT_DATABENTO_FIXTURE_URL,
   });
-  const fallback = new MockMarketDataProvider();
 
   return {
-    provider: new FallbackMarketDataProvider(primary, fallback),
     session: new FallbackMarketDataSession(primary, fallback),
-    configuredSource: "massive",
+    configuredSource: primary.source,
   };
+}
+
+function createMassiveProvider(apiKey: string | undefined) {
+  if (!apiKey) {
+    throw new MarketDataProviderError(`${MASSIVE_API_KEY_ENV} is not configured.`);
+  }
+
+  return new MassiveMarketDataProvider({
+    client: createMassiveRestClient(apiKey),
+  });
 }

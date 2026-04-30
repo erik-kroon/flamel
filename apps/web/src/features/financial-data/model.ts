@@ -2,7 +2,7 @@ import { useQuery, type QueryClient } from "@tanstack/solid-query";
 import { createEffect, createMemo, createSignal } from "solid-js";
 
 import {
-  DEFAULT_SYMBOLS,
+  type DataSource,
   MarketDataNotFoundError,
   MarketDataProviderError,
   type EquityQuote,
@@ -12,11 +12,8 @@ import {
 } from "@/features/market-data/types";
 import { isQuoteStale } from "@/features/market-data/finance-calculations";
 import type { ProviderSelection } from "@/features/market-data/providers/provider-factory";
-import {
-  hasSymbolInput,
-  includesSymbol,
-  normalizeSymbol,
-} from "@/features/market-data/symbols";
+import { hasSymbolInput, includesSymbol, normalizeSymbol } from "@/features/market-data/symbols";
+import { DEFAULT_SYMBOLS, unsupportedSymbolMessage } from "@/features/market-data/symbol-universe";
 
 import type {
   FinancialDataStatus,
@@ -24,10 +21,10 @@ import type {
   SelectedEquityViewModel,
 } from "./types";
 import { financialHistoryQuery, financialQuoteQuery, marketDataSelection } from "./queries";
-import { financialDataSourceCopy } from "./source-copy";
 import { createWatchlistQuotes } from "./watchlist-quotes";
 
 export const FINANCIAL_DATA_CACHE_WINDOW_MS = 15 * 60 * 1000;
+export const UNSUPPORTED_SYMBOL_MESSAGE = unsupportedSymbolMessage();
 
 function toUserMessage(error: unknown, fallback: string) {
   if (error instanceof MarketDataNotFoundError) {
@@ -39,6 +36,14 @@ function toUserMessage(error: unknown, fallback: string) {
   }
 
   return fallback;
+}
+
+function toSymbolIntakeMessage(error: unknown, symbol: EquitySymbol, configuredSource: DataSource) {
+  if (error instanceof MarketDataNotFoundError && configuredSource === "databento") {
+    return UNSUPPORTED_SYMBOL_MESSAGE;
+  }
+
+  return toUserMessage(error, `Unable to add ${symbol}.`);
 }
 
 function toStatus(loading: boolean, error: unknown, hasValue: boolean): FinancialDataStatus {
@@ -66,7 +71,6 @@ export function createFinancialDataWorkspace(
   queryClient?: () => QueryClient,
 ): FinancialDataWorkspaceViewModel {
   const { session } = selection;
-  const { sourceLabel, sourceDescription, fallbackReason } = financialDataSourceCopy(selection);
   const [watchlist, setWatchlist] = createSignal<EquitySymbol[]>([...DEFAULT_SYMBOLS]);
   const [selectedSymbol, setSelectedSymbol] = createSignal<EquitySymbol>(DEFAULT_SYMBOLS[0]);
   const [symbolInput, setSymbolInput] = createSignal("");
@@ -100,17 +104,6 @@ export function createFinancialDataWorkspace(
     if (historyResult) {
       setLastSessionResult(historyResult);
     }
-  });
-
-  createEffect(() => {
-    const quoteResult = quote.data;
-    const historyResult = history.data;
-
-    if (!quoteResult || !historyResult || quoteResult.source === historyResult.source) {
-      return;
-    }
-
-    void history.refetch();
   });
 
   const watchlistView = createMemo(() => watchlistQuotes.viewRows(selectedSymbol(), quote.data));
@@ -149,13 +142,11 @@ export function createFinancialDataWorkspace(
     get timeRange() {
       return timeRange();
     },
-    sourceLabel,
-    sourceDescription,
     get dataSource() {
       return lastSessionResult()?.source;
     },
     get fallbackReason() {
-      return lastSessionResult()?.fallbackReason ?? fallbackReason;
+      return lastSessionResult()?.fallbackReason;
     },
     get intakeError() {
       return intakeError();
@@ -181,7 +172,12 @@ export function createFinancialDataWorkspace(
       if (includesSymbol(watchlist(), symbol)) {
         setSelectedSymbol(symbol);
         setSymbolInput("");
-        setIntakeError(`${symbol} is already in the watchlist.`);
+        setIntakeError(`${symbol} is already in the watchlist. Selected existing symbol.`);
+        return;
+      }
+
+      if (!includesSymbol(DEFAULT_SYMBOLS, symbol)) {
+        setIntakeError(UNSUPPORTED_SYMBOL_MESSAGE);
         return;
       }
 
@@ -194,7 +190,7 @@ export function createFinancialDataWorkspace(
         setSymbolInput("");
         setIntakeError(undefined);
       } catch (error) {
-        setIntakeError(toUserMessage(error, `Unable to add ${symbol}.`));
+        setIntakeError(toSymbolIntakeMessage(error, symbol, selection.configuredSource));
       }
     },
     selectSymbol(symbol) {

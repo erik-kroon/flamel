@@ -15,10 +15,30 @@ export interface NormalizedPricePoint extends PricePoint {
   y: number;
 }
 
+export interface PriceSeriesAnalysis {
+  metadata: PriceSeriesMetadata;
+  sorted: PricePoint[];
+}
+
 export interface PriceSeriesSvgOptions {
   width?: number;
   height?: number;
   verticalPadding?: number;
+}
+
+export interface PriceDomainReference {
+  previousClose?: number;
+  open?: number;
+  last?: number;
+}
+
+export interface PriceDomain {
+  min: number;
+  max: number;
+  visibleMin: number;
+  visibleMax: number;
+  padding: number;
+  spread: number;
 }
 
 const DEFAULT_SVG_OPTIONS: Required<PriceSeriesSvgOptions> = {
@@ -27,8 +47,26 @@ const DEFAULT_SVG_OPTIONS: Required<PriceSeriesSvgOptions> = {
   verticalPadding: 4,
 };
 
+const STANDARD_DOMAIN_PADDING_RATIO = 0.1;
+const VOLATILE_DOMAIN_PADDING_RATIO = 0.12;
+const VOLATILE_RANGE_RATIO = 0.05;
+const MIN_DOMAIN_PADDING_RATIO = 0.001;
+const MIN_DOMAIN_PADDING_TICKS = 0.01;
+
+function isIsoUtcTimestamp(value: string) {
+  return /^\d{4}-\d{2}-\d{2}T.*Z$/.test(value);
+}
+
+function compareTimestamps(left: string, right: string) {
+  if (isIsoUtcTimestamp(left) && isIsoUtcTimestamp(right)) {
+    return left < right ? -1 : left > right ? 1 : 0;
+  }
+
+  return Date.parse(left) - Date.parse(right);
+}
+
 export function sortPriceSeries(points: readonly PricePoint[]): PricePoint[] {
-  return [...points].sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp));
+  return [...points].sort((a, b) => compareTimestamps(a.timestamp, b.timestamp));
 }
 
 export function appendPricePoint(
@@ -43,25 +81,97 @@ export function getPriceSeriesMetadata(
   points: readonly PricePoint[],
   range?: TimeRange,
 ): PriceSeriesMetadata {
-  if (points.length === 0) {
+  return analyzePriceSeries(points, range).metadata;
+}
+
+export function analyzePriceSeries(
+  points: readonly PricePoint[],
+  range?: TimeRange,
+): PriceSeriesAnalysis {
+  const sorted = sortPriceSeries(points);
+
+  if (sorted.length === 0) {
     return {
-      range,
-      count: 0,
-      empty: true,
+      sorted,
+      metadata: {
+        range,
+        count: 0,
+        empty: true,
+      },
     };
   }
 
-  const sorted = sortPriceSeries(points);
-  const values = sorted.map((point) => point.value);
+  let min = sorted[0]!.value;
+  let max = sorted[0]!.value;
+
+  for (let index = 1; index < sorted.length; index += 1) {
+    const value = sorted[index]!.value;
+    if (value < min) min = value;
+    if (value > max) max = value;
+  }
 
   return {
-    range,
-    count: sorted.length,
-    empty: false,
-    min: Math.min(...values),
-    max: Math.max(...values),
-    first: sorted[0],
-    last: sorted.at(-1),
+    sorted,
+    metadata: {
+      range,
+      count: sorted.length,
+      empty: false,
+      min,
+      max,
+      first: sorted[0],
+      last: sorted.at(-1),
+    },
+  };
+}
+
+function collectFinitePriceValues(point: PricePoint) {
+  return [point.low, point.open, point.value, point.close, point.high].filter((value) => {
+    return typeof value === "number" && Number.isFinite(value);
+  });
+}
+
+export function getPaddedPriceDomain(
+  points: readonly PricePoint[],
+  references: PriceDomainReference = {},
+): PriceDomain {
+  const values = [
+    ...points.flatMap((point) => collectFinitePriceValues(point)),
+    references.previousClose,
+    references.open,
+    references.last,
+  ].filter((value) => typeof value === "number" && Number.isFinite(value));
+
+  if (values.length === 0) {
+    return {
+      min: -MIN_DOMAIN_PADDING_TICKS,
+      max: MIN_DOMAIN_PADDING_TICKS,
+      visibleMin: 0,
+      visibleMax: 0,
+      padding: MIN_DOMAIN_PADDING_TICKS,
+      spread: MIN_DOMAIN_PADDING_TICKS * 2,
+    };
+  }
+
+  const visibleMin = Math.min(...values);
+  const visibleMax = Math.max(...values);
+  const visibleRange = visibleMax - visibleMin;
+  const midpoint = Math.max(Math.abs((visibleMax + visibleMin) / 2), 1);
+  const paddingRatio =
+    visibleRange / midpoint >= VOLATILE_RANGE_RATIO
+      ? VOLATILE_DOMAIN_PADDING_RATIO
+      : STANDARD_DOMAIN_PADDING_RATIO;
+  const minimumPadding = Math.max(midpoint * MIN_DOMAIN_PADDING_RATIO, MIN_DOMAIN_PADDING_TICKS);
+  const padding = Math.max(visibleRange * paddingRatio, minimumPadding);
+  const min = visibleMin - padding;
+  const max = visibleMax + padding;
+
+  return {
+    min,
+    max,
+    visibleMin,
+    visibleMax,
+    padding,
+    spread: max - min,
   };
 }
 
@@ -69,7 +179,7 @@ export function normalizePriceSeriesForSvg(
   points: readonly PricePoint[],
   options: PriceSeriesSvgOptions = {},
 ): NormalizedPricePoint[] {
-  const sorted = sortPriceSeries(points);
+  const { sorted, metadata } = analyzePriceSeries(points);
 
   if (sorted.length < 2) {
     return [];
@@ -79,7 +189,6 @@ export function normalizePriceSeriesForSvg(
     ...DEFAULT_SVG_OPTIONS,
     ...options,
   };
-  const metadata = getPriceSeriesMetadata(sorted);
   const min = metadata.min ?? 0;
   const max = metadata.max ?? min;
   const spread = Math.max(max - min, 1);

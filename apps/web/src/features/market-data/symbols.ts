@@ -58,7 +58,8 @@ export function validateSupportedSymbol(
     return {
       symbol: normalizedSymbol,
       valid: false,
-      reason: error instanceof Error ? error.message : `No market data found for ${normalizedSymbol}`,
+      reason:
+        error instanceof Error ? error.message : `No market data found for ${normalizedSymbol}`,
     };
   }
 }

@@ -1,0 +1,32 @@
+{
+  "job_id": "XNAS-20260430-7QBC35GM4V",
+  "files": [
+    {
+      "filename": "condition.json",
+      "size": 2762,
+      "hash": "sha256:445914c36935384636d6d18770af2e0bf17933c18053dafc9e42a03a3b5c9a82",
+      "urls": {
+        "https": "https://api.databento.com/v0/batch/download/TADELTE4/XNAS-20260430-7QBC35GM4V/condition.json",
+        "ftp": "ftp://ftp.databento.com/TADELTE4/XNAS-20260430-7QBC35GM4V/condition.json"
+      }
+    },
+    {
+      "filename": "metadata.json",
+      "size": 865,
+      "hash": "sha256:45cb2e8ce14cb11ff5526cdbdf828f752eca7f0adc3904b5c270356995e92538",
+      "urls": {
+        "https": "https://api.databento.com/v0/batch/download/TADELTE4/XNAS-20260430-7QBC35GM4V/metadata.json",
+        "ftp": "ftp://ftp.databento.com/TADELTE4/XNAS-20260430-7QBC35GM4V/metadata.json"
+      }
+    },
+    {
+      "filename": "xnas-itch-20260330-20260429.ohlcv-1h.json.zst",
+      "size": 87047,
+      "hash": "sha256:1803453ffd6e75017afd461281ea487d079fcfbf8f58398040ca3c77e55b8b65",
+      "urls": {
+        "https": "https://api.databento.com/v0/batch/download/TADELTE4/XNAS-20260430-7QBC35GM4V/xnas-itch-20260330-20260429.ohlcv-1h.json.zst",
+        "ftp": "ftp://ftp.databento.com/TADELTE4/XNAS-20260430-7QBC35GM4V/xnas-itch-20260330-20260429.ohlcv-1h.json.zst"
+      }
+    }
+  ]
+}

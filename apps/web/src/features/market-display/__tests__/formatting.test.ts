@@ -28,13 +28,15 @@ describe("market display formatting", () => {
 
   it("formats optional timestamps for market status surfaces", () => {
     expect(formatMarketTimestamp("2026-04-30T12:00:00.000Z")).toMatch(/Apr 30/);
+    expect(formatMarketTimestamp("2026-04-30T18:00:00.000Z")).toContain("ET");
     expect(formatMarketTimestamp(undefined)).toBe("Pending");
   });
 
   it("formats chart labels without rendering the chart", () => {
-    expect(formatMarketAxisPrice(209.44)).toBe("$209");
+    expect(formatMarketAxisPrice(209.44)).toBe("$209.44");
+    expect(formatMarketAxisPrice(209.44, "USD", 0)).toBe("$209");
     expect(formatMarketAxisPrice(86.3, "EUR")).toBe("€86.30");
-    expect(formatMarketChartTime("2026-04-30T12:00:00.000Z", "1D")).toMatch(/\d{2}:00/);
+    expect(formatMarketChartTime("2026-04-30T12:00:00.000Z", "1D")).toMatch(/\d{2}:00.*ET/);
     expect(formatMarketChartTime("2026-04-30T12:00:00.000Z", "1M")).toMatch(/Apr 30/);
   });
 });

@@ -9,45 +9,6 @@ import {
   type TimeRange,
 } from "../types";
 
-export class FallbackMarketDataProvider implements MarketDataProvider {
-  readonly source: MarketDataProvider["source"];
-
-  constructor(
-    private readonly primary: MarketDataProvider,
-    private readonly fallback: MarketDataProvider,
-    private readonly onFallback?: (error: unknown) => void,
-  ) {
-    this.source = primary.source;
-  }
-
-  async search(query: string): Promise<EquitySearchResult[]> {
-    try {
-      return await this.primary.search(query);
-    } catch (error) {
-      this.onFallback?.(error);
-      return this.fallback.search(query);
-    }
-  }
-
-  async quote(symbol: string): Promise<EquityQuote> {
-    try {
-      return await this.primary.quote(symbol);
-    } catch (error) {
-      this.onFallback?.(error);
-      return this.fallback.quote(symbol);
-    }
-  }
-
-  async history(symbol: string, range: TimeRange): Promise<PricePoint[]> {
-    try {
-      return await this.primary.history(symbol, range);
-    } catch (error) {
-      this.onFallback?.(error);
-      return this.fallback.history(symbol, range);
-    }
-  }
-}
-
 function fallbackReason(error: unknown) {
   if (error instanceof Error) {
     return error.message;
@@ -98,8 +59,11 @@ export class ProviderMarketDataSession implements MarketDataSession {
 }
 
 export class FallbackMarketDataSession implements MarketDataSession {
-  private readonly symbolSources = new Map<string, DataSource>();
-  private readonly symbolFallbackReasons = new Map<string, string>();
+  private readonly symbolAffinities = new Map<
+    string,
+    Pick<MarketDataSessionResult<unknown>, "source" | "status" | "fallbackReason">
+  >();
+  private readonly quoteRequests = new Map<string, Promise<MarketDataSessionResult<EquityQuote>>>();
 
   constructor(
     private readonly primary: MarketDataProvider,
@@ -127,10 +91,23 @@ export class FallbackMarketDataSession implements MarketDataSession {
   }
 
   async quote(symbol: string): Promise<MarketDataSessionResult<EquityQuote>> {
+    const pending = this.quoteRequests.get(symbol);
+    if (pending) {
+      return pending;
+    }
+
+    const request = this.loadQuote(symbol).finally(() => {
+      this.quoteRequests.delete(symbol);
+    });
+    this.quoteRequests.set(symbol, request);
+    return request;
+  }
+
+  private async loadQuote(symbol: string): Promise<MarketDataSessionResult<EquityQuote>> {
     try {
       const data = await this.primary.quote(symbol);
       const source = quoteSource(data, this.primary.source);
-      this.symbolSources.set(symbol, source);
+      this.rememberSymbolAffinity(symbol, { source, status: "primary" });
 
       return {
         data,
@@ -142,8 +119,11 @@ export class FallbackMarketDataSession implements MarketDataSession {
       const data = await this.fallback.quote(symbol);
       const source = quoteSource(data, this.fallback.source);
       const reason = fallbackReason(error);
-      this.symbolSources.set(symbol, source);
-      this.symbolFallbackReasons.set(symbol, reason);
+      this.rememberSymbolAffinity(symbol, {
+        source,
+        status: "fallback",
+        fallbackReason: reason,
+      });
 
       return {
         data,
@@ -155,30 +135,53 @@ export class FallbackMarketDataSession implements MarketDataSession {
   }
 
   async history(symbol: string, range: TimeRange): Promise<MarketDataSessionResult<PricePoint[]>> {
-    if (this.symbolSources.get(symbol) === this.fallback.source) {
+    await this.quoteRequests.get(symbol)?.catch(() => undefined);
+
+    const affinity = this.symbolAffinities.get(symbol);
+
+    if (affinity?.source === this.fallback.source) {
       return {
         data: await this.fallback.history(symbol, range),
-        source: this.fallback.source,
-        status: "fallback",
-        fallbackReason: this.symbolFallbackReasons.get(symbol),
+        source: affinity.source,
+        status: affinity.status,
+        fallbackReason: affinity.fallbackReason,
       };
     }
 
     try {
+      const data = await this.primary.history(symbol, range);
+      this.rememberSymbolAffinity(symbol, {
+        source: this.primary.source,
+        status: "primary",
+      });
+
       return {
-        data: await this.primary.history(symbol, range),
+        data,
         source: this.primary.source,
         status: "primary",
       };
     } catch (error) {
       this.onFallback?.(error);
+      const reason = fallbackReason(error);
+      this.rememberSymbolAffinity(symbol, {
+        source: this.fallback.source,
+        status: "fallback",
+        fallbackReason: reason,
+      });
 
       return {
         data: await this.fallback.history(symbol, range),
         source: this.fallback.source,
         status: "fallback",
-        fallbackReason: fallbackReason(error),
+        fallbackReason: reason,
       };
     }
+  }
+
+  private rememberSymbolAffinity(
+    symbol: string,
+    affinity: Pick<MarketDataSessionResult<unknown>, "source" | "status" | "fallbackReason">,
+  ) {
+    this.symbolAffinities.set(symbol, affinity);
   }
 }

@@ -34,8 +34,6 @@ export interface FinancialDataWorkspaceViewModel {
   selectedEquity: SelectedEquityViewModel;
   symbolInput: string;
   timeRange: TimeRange;
-  sourceLabel: string;
-  sourceDescription: string;
   dataSource?: DataSource;
   fallbackReason?: string;
   intakeError?: string;

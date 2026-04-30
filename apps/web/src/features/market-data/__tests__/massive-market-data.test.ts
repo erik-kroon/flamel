@@ -1,14 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { parseWebEnv } from "@flamel/env/web";
 
-import {
-  FallbackMarketDataSession,
-  FallbackMarketDataProvider,
-} from "../providers/fallback-market-data";
-import {
-  MASSIVE_API_KEY_ENV,
-  createMarketDataProvider,
-} from "../providers/provider-factory";
+import { FallbackMarketDataSession } from "../providers/fallback-market-data";
+import { DatabentoExportMarketDataProvider } from "../providers/databento-market-data";
+import { MASSIVE_API_KEY_ENV, createMarketDataProvider } from "../providers/provider-factory";
 import {
   MassiveMarketDataProvider,
   planMassiveHistoryRequest,
@@ -23,6 +18,58 @@ import {
   massiveSnapshotFixture,
   massiveTickerFixture,
 } from "../fixtures/massive";
+
+const databentoFixture = {
+  source: "databento",
+  dataset: "XNAS.ITCH",
+  schema: "app-chart-fixture-v1",
+  requestId: "test-fixture",
+  equities: [
+    {
+      symbol: "AAPL",
+      name: "Apple Inc.",
+      exchange: "NASDAQ",
+      currency: "USD",
+      previousClose: 207,
+      quote: {
+        timestamp: "2026-04-29T20:00:00.000Z",
+        open: 207.5,
+        high: 211,
+        low: 206.5,
+        close: 210,
+        volume: 1200,
+      },
+      history: {
+        "1D": {
+          granularity: "1m",
+          session: "extended",
+          bars: [
+            {
+              timestamp: "2026-04-29T20:00:00.000Z",
+              open: 207.5,
+              high: 211,
+              low: 206.5,
+              close: 210,
+              volume: 1200,
+            },
+          ],
+        },
+        "1W": [{ timestamp: "2026-04-29T20:00:00.000Z", value: 210 }],
+        "1M": [{ timestamp: "2026-04-29T20:00:00.000Z", value: 210 }],
+      },
+    },
+  ],
+};
+
+function stubDatabentoFixtureFetch() {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => ({
+      ok: true,
+      json: async () => databentoFixture,
+    })),
+  );
+}
 
 function createClient(): MassiveRestClient {
   return {
@@ -145,32 +192,36 @@ describe("MassiveMarketDataProvider", () => {
 describe("market data provider fallback", () => {
   it("parses web env into named provider configuration", () => {
     expect(parseWebEnv({ [MASSIVE_API_KEY_ENV]: " test-key " })).toEqual({
+      databentoApiKey: undefined,
+      databentoExportUrl: undefined,
       massiveApiKey: "test-key",
     });
     expect(parseWebEnv({ [MASSIVE_API_KEY_ENV]: "" })).toEqual({
+      databentoApiKey: undefined,
+      databentoExportUrl: undefined,
       massiveApiKey: undefined,
     });
   });
 
-  it("uses mock fallback when no Massive API key is configured", () => {
+  it("uses the bundled Databento fixture when no market data API key is configured", () => {
     const selection = createMarketDataProvider(parseWebEnv({ [MASSIVE_API_KEY_ENV]: "" }));
 
-    expect(selection.configuredSource).toBe("mock");
-    expect(selection.fallbackReason).toContain(MASSIVE_API_KEY_ENV);
+    expect(selection.configuredSource).toBe("databento");
   });
 
-  it("reports mock session status when no Massive API key is configured", async () => {
+  it("reports Databento fixture status when no market data API key is configured", async () => {
+    stubDatabentoFixtureFetch();
     const selection = createMarketDataProvider(parseWebEnv({ [MASSIVE_API_KEY_ENV]: "" }));
 
     await expect(selection.session.quote("AAPL")).resolves.toMatchObject({
-      source: "mock",
-      status: "fallback",
-      fallbackReason: expect.stringContaining(MASSIVE_API_KEY_ENV),
+      source: "databento",
+      status: "primary",
       data: {
         symbol: "AAPL",
-        source: "mock",
+        source: "databento",
       },
     });
+    vi.unstubAllGlobals();
   });
 
   it("selects Massive REST when an API key is configured", () => {
@@ -184,32 +235,8 @@ describe("market data provider fallback", () => {
     expect(selection.session).toBeDefined();
   });
 
-  it("falls back to deterministic mock data when the primary provider fails", async () => {
-    const fallbackProvider = new FallbackMarketDataProvider(
-      {
-        source: "massive",
-        search: vi.fn(async () => {
-          throw new Error("rate limited");
-        }),
-        quote: vi.fn(async () => {
-          throw new Error("rate limited");
-        }),
-        history: vi.fn(async () => {
-          throw new Error("rate limited");
-        }),
-      },
-      createMarketDataProvider(parseWebEnv({})).provider,
-    );
-
-    await expect(fallbackProvider.quote("AAPL")).resolves.toMatchObject({
-      symbol: "AAPL",
-      source: "mock",
-    });
-    await expect(fallbackProvider.history("AAPL", "1D")).resolves.not.toEqual([]);
-    await expect(fallbackProvider.search("AAPL")).resolves.toHaveLength(1);
-  });
-
-  it("reports actual source, status, and fallback reason from session calls", async () => {
+  it("falls back to the bundled Databento fixture when the primary provider fails", async () => {
+    stubDatabentoFixtureFetch();
     const fallbackSession = new FallbackMarketDataSession(
       {
         source: "massive",
@@ -223,26 +250,66 @@ describe("market data provider fallback", () => {
           throw new Error("rate limited");
         }),
       },
-      createMarketDataProvider(parseWebEnv({})).provider,
+      new DatabentoExportMarketDataProvider({ url: "/data/databento-market-data.json" }),
     );
 
     await expect(fallbackSession.quote("AAPL")).resolves.toMatchObject({
-      source: "mock",
+      source: "databento",
       status: "fallback",
       fallbackReason: "rate limited",
       data: {
         symbol: "AAPL",
-        source: "mock",
+        source: "databento",
       },
     });
     await expect(fallbackSession.history("AAPL", "1D")).resolves.toMatchObject({
-      source: "mock",
+      source: "databento",
+      status: "fallback",
+      data: expect.any(Array),
+    });
+    await expect(fallbackSession.search("AAPL")).resolves.toMatchObject({
+      source: "databento",
+      status: "fallback",
+      data: expect.any(Array),
+    });
+    vi.unstubAllGlobals();
+  });
+
+  it("reports actual source, status, and fallback reason from session calls", async () => {
+    stubDatabentoFixtureFetch();
+    const fallbackSession = new FallbackMarketDataSession(
+      {
+        source: "massive",
+        search: vi.fn(async () => {
+          throw new Error("rate limited");
+        }),
+        quote: vi.fn(async () => {
+          throw new Error("rate limited");
+        }),
+        history: vi.fn(async () => {
+          throw new Error("rate limited");
+        }),
+      },
+      new DatabentoExportMarketDataProvider({ url: "/data/databento-market-data.json" }),
+    );
+
+    await expect(fallbackSession.quote("AAPL")).resolves.toMatchObject({
+      source: "databento",
+      status: "fallback",
+      fallbackReason: "rate limited",
+      data: {
+        symbol: "AAPL",
+        source: "databento",
+      },
+    });
+    await expect(fallbackSession.history("AAPL", "1D")).resolves.toMatchObject({
+      source: "databento",
       status: "fallback",
       fallbackReason: "rate limited",
       data: expect.any(Array),
     });
     await expect(fallbackSession.search("AAPL")).resolves.toMatchObject({
-      source: "mock",
+      source: "databento",
       status: "fallback",
       fallbackReason: "rate limited",
       data: [
@@ -251,5 +318,50 @@ describe("market data provider fallback", () => {
         },
       ],
     });
+    vi.unstubAllGlobals();
+  });
+
+  it("keeps parallel quote and history calls on the same source after quote fallback", async () => {
+    stubDatabentoFixtureFetch();
+    let releaseQuoteFailure: () => void = () => undefined;
+    const quoteFailure = new Promise<void>((resolve) => {
+      releaseQuoteFailure = resolve;
+    });
+    const fallbackSession = new FallbackMarketDataSession(
+      {
+        source: "massive",
+        search: vi.fn(async () => []),
+        quote: vi.fn(async () => {
+          await quoteFailure;
+          throw new Error("rate limited");
+        }),
+        history: vi.fn(async () => [
+          {
+            timestamp: "2026-04-29T20:00:00.000Z",
+            value: 999,
+          },
+        ]),
+      },
+      new DatabentoExportMarketDataProvider({ url: "/data/databento-market-data.json" }),
+    );
+
+    const quote = fallbackSession.quote("AAPL");
+    const history = fallbackSession.history("AAPL", "1D");
+    releaseQuoteFailure();
+
+    await expect(quote).resolves.toMatchObject({
+      source: "databento",
+      status: "fallback",
+    });
+    await expect(history).resolves.toMatchObject({
+      source: "databento",
+      status: "fallback",
+      data: [
+        expect.objectContaining({
+          value: 210,
+        }),
+      ],
+    });
+    vi.unstubAllGlobals();
   });
 });

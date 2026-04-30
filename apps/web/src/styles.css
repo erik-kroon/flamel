@@ -1,5 +1,35 @@
 @import "tailwindcss";
 
+:root {
+  --surface-app: #050607;
+  --surface-panel: #0a0c0e;
+  --surface-elevated: #101316;
+  --surface-input: #0d1012;
+  --surface-panel-overlay: rgb(10 12 14 / 95%);
+  --surface-tooltip: rgb(13 16 18 / 88%);
+  --border-default: #1b2025;
+  --border-subtle: #121619;
+  --border-hairline: #0f1215;
+  --text-primary: #f4f6f8;
+  --text-secondary: #a1a7ae;
+  --text-muted: #6f767e;
+  --text-faint: #4f565e;
+  --positive: #5ee6a8;
+  --negative: #eaa08f;
+  --negative-chart: rgb(234 160 143);
+  --accent: #5ad7f2;
+  --warning: #d6b640;
+  --accent-border: rgb(90 215 242 / 36%);
+  --accent-soft: rgb(90 215 242 / 8%);
+  --negative-soft: rgb(234 160 143 / 8%);
+  --negative-border: rgb(234 160 143 / 24%);
+  --warning-soft: rgb(214 182 64 / 8%);
+  --line-height-body: 1.45;
+  --line-height-tight: 1.2;
+  --tracking-label: 0.08em;
+  --ease-crisp: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
 html,
 body,
 #root {
@@ -12,6 +42,124 @@ body,
 }
 
 body {
-  @apply bg-neutral-950 text-neutral-100;
+  @apply bg-[var(--surface-app)];
+  color: var(--text-primary);
   margin: 0;
+  line-height: var(--line-height-body);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+.numeric {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+.section-label {
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  line-height: var(--line-height-tight);
+  text-transform: uppercase;
+}
+
+.metric-label {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1rem;
+}
+
+.financial-value {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  line-height: var(--line-height-tight);
+}
+
+.symbol-input-shell {
+  transition:
+    background-color 140ms var(--ease-crisp),
+    border-color 140ms var(--ease-crisp),
+    box-shadow 140ms var(--ease-crisp);
+}
+
+.watchlist-row {
+  position: relative;
+  transition:
+    background-color 150ms var(--ease-crisp),
+    border-color 150ms var(--ease-crisp),
+    color 150ms var(--ease-crisp),
+    transform 150ms var(--ease-crisp);
+}
+
+.watchlist-row::before {
+  background-color: transparent;
+  content: "";
+  height: calc(100% - 1rem);
+  left: 0;
+  position: absolute;
+  top: 0.5rem;
+  transition: background-color 150ms var(--ease-crisp);
+  width: 2px;
+}
+
+.watchlist-row:hover {
+  background-color: rgb(255 255 255 / 3%);
+}
+
+.watchlist-row[data-selected="true"] {
+  background-color: rgb(90 215 242 / 6%);
+}
+
+.watchlist-row[data-selected="true"]::before {
+  background-color: var(--accent);
+}
+
+.watchlist-row[data-selected="true"]:hover {
+  background-color: rgb(90 215 242 / 8%);
+}
+
+.range-button {
+  min-width: 2.5rem;
+  transition:
+    background-color 140ms var(--ease-crisp),
+    box-shadow 140ms var(--ease-crisp),
+    color 140ms var(--ease-crisp),
+    transform 120ms var(--ease-crisp);
+}
+
+.range-button:active {
+  transform: scale(0.97);
+}
+
+.range-refresh-button {
+  transition:
+    background-color 140ms var(--ease-crisp),
+    color 140ms var(--ease-crisp);
+}
+
+.chart-tooltip {
+  transition:
+    left 110ms var(--ease-crisp),
+    top 110ms var(--ease-crisp);
+}
+
+.chart-reference-label {
+  color: var(--text-muted);
+  font-size: 0.5625rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1;
+  text-align: right;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .symbol-input-shell,
+  .watchlist-row,
+  .range-button,
+  .range-refresh-button,
+  .chart-tooltip {
+    transition: none;
+  }
 }

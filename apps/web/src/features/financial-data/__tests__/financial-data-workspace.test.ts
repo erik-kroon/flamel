@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { ProviderMarketDataSession } from "@/features/market-data/providers/fallback-market-data";
 import { MockMarketDataProvider } from "@/features/market-data/providers/mock-market-data";
 
+import { chartAnnotationLayout } from "../chart-annotations";
 import { createFinancialDataWorkspace } from "../model";
 import { createWatchlistQuotes } from "../watchlist-quotes";
 
@@ -25,10 +26,8 @@ function createMockWorkspace() {
     },
     workspace: createFinancialDataWorkspace(
       {
-        provider,
         session: new ProviderMarketDataSession(provider, "fallback", "test fallback"),
         configuredSource: "mock",
-        fallbackReason: "test fallback",
       },
       () => queryClient,
     ),
@@ -45,15 +44,15 @@ describe("createFinancialDataWorkspace", () => {
 
     expect(workspace.watchlist.map(({ symbol, selected }) => ({ symbol, selected }))).toEqual([
       { symbol: "AAPL", selected: true },
+      { symbol: "AMZN", selected: false },
+      { symbol: "GOOG", selected: false },
+      { symbol: "META", selected: false },
       { symbol: "MSFT", selected: false },
       { symbol: "NVDA", selected: false },
+      { symbol: "TSLA", selected: false },
     ]);
     expect(workspace.selectedEquity.symbol).toBe("AAPL");
-    expect(workspace.sourceLabel).toBe("Offline review");
-    expect(workspace.sourceDescription).toBe(
-      "Track equities, inspect quote details and review recent price movement.",
-    );
-    expect(workspace.fallbackReason).toBe("test fallback");
+    expect(workspace.fallbackReason).toBeUndefined();
 
     dispose();
   });
@@ -69,6 +68,18 @@ describe("createFinancialDataWorkspace", () => {
         quote: expect.objectContaining({ name: "Apple Inc.", lastPrice: 209.44 }),
       }),
       expect.objectContaining({
+        symbol: "AMZN",
+        quote: expect.objectContaining({ name: "Amazon.com, Inc.", lastPrice: 186.11 }),
+      }),
+      expect.objectContaining({
+        symbol: "GOOG",
+        quote: expect.objectContaining({ name: "Alphabet Inc.", lastPrice: 371.99 }),
+      }),
+      expect.objectContaining({
+        symbol: "META",
+        quote: expect.objectContaining({ name: "Meta Platforms, Inc.", lastPrice: 531.28 }),
+      }),
+      expect.objectContaining({
         symbol: "MSFT",
         quote: expect.objectContaining({ name: "Microsoft Corporation", lastPrice: 427.18 }),
       }),
@@ -76,34 +87,31 @@ describe("createFinancialDataWorkspace", () => {
         symbol: "NVDA",
         quote: expect.objectContaining({ name: "NVIDIA Corporation", lastPrice: 118.72 }),
       }),
+      expect.objectContaining({
+        symbol: "TSLA",
+        quote: expect.objectContaining({ name: "Tesla, Inc.", lastPrice: 182.64 }),
+      }),
     ]);
 
     dispose();
   });
 
-  it("normalizes symbol intake, selects new symbols, and reports duplicates", async () => {
+  it("normalizes symbol intake, selects existing fixture symbols, and reports duplicates", async () => {
     const { dispose, workspace } = createMockWorkspace();
 
-    workspace.setSymbolInput(" tsla ");
+    workspace.selectSymbol("AAPL");
+    workspace.setSymbolInput(" msft ");
     await workspace.addSymbol();
 
-    expect(workspace.watchlist.at(-1)).toMatchObject({
-      symbol: "TSLA",
+    expect(workspace.watchlist.find((item) => item.symbol === "MSFT")).toMatchObject({
+      symbol: "MSFT",
       selected: true,
-      quote: {
-        name: "Tesla, Inc.",
-        lastPrice: 182.64,
-        changePercent: -1.87,
-      },
     });
     expect(workspace.symbolInput).toBe("");
-    expect(workspace.intakeError).toBeUndefined();
-
-    workspace.setSymbolInput("tsla");
-    await workspace.addSymbol();
-
-    expect(workspace.watchlist.filter((item) => item.symbol === "TSLA")).toHaveLength(1);
-    expect(workspace.intakeError).toBe("TSLA is already in the watchlist.");
+    expect(workspace.watchlist.filter((item) => item.symbol === "MSFT")).toHaveLength(1);
+    expect(workspace.intakeError).toBe(
+      "MSFT is already in the watchlist. Selected existing symbol.",
+    );
 
     dispose();
   });
@@ -115,9 +123,41 @@ describe("createFinancialDataWorkspace", () => {
     await workspace.addSymbol();
 
     expect(workspace.watchlist.some((item) => item.symbol === "NOPE")).toBe(false);
-    expect(workspace.intakeError).toBe("No market data found for NOPE");
+    expect(workspace.intakeError).toBe(
+      "Symbol not included in bundled fixture universe. Available: AAPL, AMZN, GOOG, META, MSFT, NVDA, TSLA.",
+    );
 
     dispose();
+  });
+});
+
+describe("chartAnnotationLayout", () => {
+  it("keeps last visible and hides open when reference labels are crowded", () => {
+    const layout = chartAnnotationLayout({
+      last: 12,
+      open: 13.5,
+      previousClose: 54,
+      axis: [{ top: 6 }, { top: 23.5 }, { top: 41 }, { top: 58.5 }, { top: 76 }],
+    });
+
+    expect(layout.referenceLabelVisible.last).toBe(true);
+    expect(layout.referenceLabelVisible.previousClose).toBe(true);
+    expect(layout.referenceLabelVisible.open).toBe(false);
+    expect(layout.referenceLabelY.previousClose).toBe(54);
+  });
+
+  it("stacks lower-priority labels before hiding them and suppresses colliding axis labels", () => {
+    const layout = chartAnnotationLayout({
+      last: 50,
+      previousClose: 53,
+      open: 68,
+      axis: [{ top: 6 }, { top: 23.5 }, { top: 41 }, { top: 58.5 }, { top: 76 }],
+    });
+
+    expect(layout.referenceLabelVisible.last).toBe(true);
+    expect(layout.referenceLabelVisible.previousClose).toBe(true);
+    expect(layout.referenceLabelY.previousClose).not.toBe(53);
+    expect(layout.axisLabelVisible).toEqual([true, true, true, false, true]);
   });
 });
 

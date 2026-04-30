@@ -2,7 +2,7 @@ export type EquitySymbol = string;
 
 export type TimeRange = "1D" | "1W" | "1M";
 
-export type DataSource = "mock" | "massive";
+export type DataSource = "mock" | "massive" | "databento";
 
 export type MarketDataSourceStatus = "primary" | "fallback";
 
@@ -31,6 +31,11 @@ export interface EquityQuote extends EquitySearchResult {
 export interface PricePoint {
   timestamp: string;
   value: number;
+  open?: number;
+  high?: number;
+  low?: number;
+  close?: number;
+  volume?: number;
 }
 
 export class MarketDataNotFoundError extends Error {
@@ -69,5 +74,3 @@ export interface MarketDataSession {
   quote(symbol: EquitySymbol): Promise<MarketDataSessionResult<EquityQuote>>;
   history(symbol: EquitySymbol, range: TimeRange): Promise<MarketDataSessionResult<PricePoint[]>>;
 }
-
-export const DEFAULT_SYMBOLS = ["AAPL", "MSFT", "NVDA"] as const;
