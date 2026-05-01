@@ -200,9 +200,6 @@ export function FinancialDataWorkspace() {
 
   return (
     <>
-      <a class="skip-link" href="#price-history-chart">
-        Skip to chart
-      </a>
       <main
         class="h-dvh min-h-0 w-full overflow-x-hidden overflow-y-auto bg-[var(--surface-app)] text-[var(--text-primary)] xl:overflow-hidden"
         id="financial-data-content"
@@ -213,7 +210,7 @@ export function FinancialDataWorkspace() {
             class="flex min-h-0 min-w-0 flex-col border-b border-white/10 p-4 lg:border-b-0 lg:border-r lg:border-white/10 lg:px-5 lg:py-4 xl:overflow-hidden"
           >
             <div class="-mx-4 mb-4 shrink-0 border-b border-[var(--border-hairline)] px-4 pb-3.5 lg:-mx-5 lg:px-5">
-              <div class="flex min-w-0 items-center gap-2.5">
+              <div class="flex min-w-0 cursor-default select-none items-center gap-2.5">
                 <img
                   alt=""
                   aria-hidden="true"
@@ -249,7 +246,7 @@ export function FinancialDataWorkspace() {
                 {(item) => (
                   <div
                     data-selected={item.selected}
-                    class={`watchlist-row group h-14 w-full text-sm ${
+                    class={`watchlist-row group grid h-14 w-full grid-cols-[minmax(0,1fr)_2.5rem] items-center text-sm ${
                       item.selected ? "text-[var(--accent)]" : "text-[var(--text-secondary)]"
                     }`}
                   >
@@ -257,7 +254,7 @@ export function FinancialDataWorkspace() {
                       aria-label={`${item.symbol}, ${item.quote?.name ?? watchlistStatusLabel(item.status, item.source)}${item.quote ? `, ${formatMoney(item.quote.lastPrice, item.quote.currency)}, ${formatSignedPercent(item.quote.changePercent)}` : ""}`}
                       aria-current={item.selected ? "true" : undefined}
                       data-watchlist-symbol={item.symbol}
-                      class="grid h-full w-full min-w-0 grid-cols-1 items-center gap-4 px-6 py-2 text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent)] sm:grid-cols-[minmax(0,1fr)_minmax(104px,auto)] lg:pl-7 lg:pr-5"
+                      class="grid h-full w-full min-w-0 grid-cols-1 items-center gap-4 px-6 py-2 text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent)] sm:grid-cols-[minmax(0,1fr)_minmax(104px,auto)] lg:pl-7 lg:pr-3"
                       tabIndex={item.selected ? 0 : -1}
                       type="button"
                       onClick={() => workspace.selectSymbol(item.symbol)}
@@ -297,7 +294,7 @@ export function FinancialDataWorkspace() {
                     </button>
                     <button
                       aria-label={`Remove ${item.symbol} from watchlist`}
-                      class="watchlist-remove-button absolute right-2 top-1/2 grid size-7 -translate-y-1/2 place-items-center text-[var(--text-faint)] transition hover:bg-[var(--negative-soft)] hover:text-[var(--negative)] focus-visible:bg-[var(--surface-elevated)] focus-visible:text-[var(--negative)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent)]"
+                      class="watchlist-remove-button mr-3 grid size-7 place-items-center text-[var(--text-faint)] transition hover:bg-[var(--negative-soft)] hover:text-[var(--negative)] focus-visible:bg-[var(--surface-elevated)] focus-visible:text-[var(--negative)] focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent)]"
                       title={`Remove ${item.symbol}`}
                       type="button"
                       onClick={() => workspace.removeSymbol(item.symbol)}

@@ -155,11 +155,20 @@ body {
 
 .watchlist-remove-button {
   opacity: 0;
+  transition:
+    background-color 140ms var(--ease-crisp),
+    color 140ms var(--ease-crisp),
+    opacity 120ms var(--ease-crisp),
+    transform 120ms var(--ease-crisp);
 }
 
 .watchlist-row:hover .watchlist-remove-button,
 .watchlist-row:focus-within .watchlist-remove-button {
   opacity: 1;
+}
+
+.watchlist-remove-button:active {
+  transform: scale(0.94);
 }
 
 .range-button {
