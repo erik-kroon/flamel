@@ -264,10 +264,10 @@ export function FinancialDataWorkspace() {
                     >
                       <span class="grid min-w-0 overflow-hidden">
                         <span class="flex min-w-0 items-baseline gap-2">
-                          <span class="truncate font-semibold financial-value tracking-normal text-[var(--text-primary)]">
+                          <span class="shrink-0 font-semibold financial-value tracking-normal text-[var(--text-primary)]">
                             {item.symbol}
                           </span>
-                          <span class="truncate text-[0.6875rem] font-medium financial-value text-[var(--text-muted)]">
+                          <span class="min-w-0 truncate text-[0.6875rem] font-medium financial-value text-[var(--text-muted)]">
                             {item.quote?.exchange ? `· ${item.quote.exchange}` : ""}
                           </span>
                         </span>
