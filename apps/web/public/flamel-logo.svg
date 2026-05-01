@@ -1,17 +1,17 @@
 <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
   <title id="title">Flamel logo</title>
-  <desc id="desc">A geometric laboratory flask with a triangular base, straight neck, glowing liquid, and market line.</desc>
+  <desc id="desc">A geometric laboratory flask with a triangular base, straight neck, and glowing liquid.</desc>
   <defs>
     <linearGradient id="flamel-glass" x1="18" y1="8" x2="48" y2="58" gradientUnits="userSpaceOnUse">
       <stop stop-color="#F4F6F8"/>
       <stop offset="1" stop-color="#8D98A3"/>
     </linearGradient>
     <linearGradient id="flamel-liquid" x1="18" y1="36" x2="50" y2="58" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#5AD7F2"/>
-      <stop offset="1" stop-color="#5EE6A8"/>
+      <stop stop-color="#68AFBD"/>
+      <stop offset="1" stop-color="#78BD99"/>
     </linearGradient>
     <filter id="flamel-glow" x="8" y="22" width="48" height="42" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
-      <feFlood flood-color="#5AD7F2" flood-opacity="0.35"/>
+      <feFlood flood-color="#68AFBD" flood-opacity="0.16"/>
       <feComposite in2="SourceAlpha" operator="in"/>
       <feGaussianBlur stdDeviation="4"/>
       <feBlend in="SourceGraphic" mode="screen"/>
@@ -22,10 +22,5 @@
   <path d="M25 9H39" stroke="url(#flamel-glass)" stroke-width="4" stroke-linecap="round"/>
   <path d="M28 11V25L14.5 51C13.1 53.7 15.1 57 18.1 57H45.9C48.9 57 50.9 53.7 49.5 51L36 25V11" stroke="url(#flamel-glass)" stroke-width="4" stroke-linejoin="round"/>
   <path d="M23 37H41L48 51C49 53 47.6 55 45.4 55H18.6C16.4 55 15 53 16 51L23 37Z" fill="url(#flamel-liquid)" filter="url(#flamel-glow)"/>
-  <path d="M21 45L27 41L33 47L41 39" stroke="#050607" stroke-opacity="0.78" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M20 37H44" stroke="#F4F6F8" stroke-opacity="0.82" stroke-width="2" stroke-linecap="round"/>
-  <path d="M48 13V21" stroke="#5EE6A8" stroke-width="2" stroke-linecap="round"/>
-  <path d="M44 17H52" stroke="#5EE6A8" stroke-width="2" stroke-linecap="round"/>
-  <path d="M49.7 15.3L46.3 18.7" stroke="#5AD7F2" stroke-width="2" stroke-linecap="round"/>
-  <path d="M46.3 15.3L49.7 18.7" stroke="#5AD7F2" stroke-width="2" stroke-linecap="round"/>
 </svg>

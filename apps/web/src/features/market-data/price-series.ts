@@ -41,6 +41,11 @@ export interface PriceDomain {
   spread: number;
 }
 
+export interface PriceSeriesPathPoint {
+  x: number;
+  y: number;
+}
+
 const DEFAULT_SVG_OPTIONS: Required<PriceSeriesSvgOptions> = {
   width: 100,
   height: 52,
@@ -130,6 +135,10 @@ function collectFinitePriceValues(point: PricePoint) {
   });
 }
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
 export function getPaddedPriceDomain(
   points: readonly PricePoint[],
   references: PriceDomainReference = {},
@@ -139,7 +148,7 @@ export function getPaddedPriceDomain(
     references.previousClose,
     references.open,
     references.last,
-  ].filter((value) => typeof value === "number" && Number.isFinite(value));
+  ].filter(isFiniteNumber);
 
   if (values.length === 0) {
     return {
@@ -206,8 +215,14 @@ export function priceSeriesToSvgPath(
   options: PriceSeriesSvgOptions = {},
 ) {
   return normalizePriceSeriesForSvg(points, options)
-    .map((point, index) => {
-      return `${index === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
-    })
+    .map((point, index) => formatSvgPathCommand(point, index))
     .join(" ");
+}
+
+export function pricePointsToSvgPath(points: readonly PriceSeriesPathPoint[]) {
+  return points.map((point, index) => formatSvgPathCommand(point, index)).join(" ");
+}
+
+function formatSvgPathCommand(point: PriceSeriesPathPoint, index: number) {
+  return `${index === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
 }

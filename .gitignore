@@ -10,7 +10,8 @@ build
 
 # Environment variables
 .env
-.env*.local
+.env.*
+!.env.example
 
 # IDEs and editors
 .vscode/*
@@ -43,9 +44,19 @@ lerna-debug.log*
 # Testing
 coverage
 .nyc_output
+test-results
+playwright-report
 
 # Misc
 *.tgz
 .cache
 tmp
 temp
+.context/
+.playwright-mcp/
+
+# Local vendor exports used only to regenerate compact fixtures
+data/raw/
+*.zst
+*.dbn
+*.parquet

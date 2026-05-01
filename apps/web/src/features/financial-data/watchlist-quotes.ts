@@ -5,7 +5,6 @@ import {
   type EquityQuote,
   type EquitySymbol,
   type MarketDataSession,
-  type MarketDataSourceStatus,
   type MarketDataSessionResult,
 } from "@/features/market-data/types";
 
@@ -16,7 +15,6 @@ export interface WatchlistQuoteState {
   status: FinancialDataStatus;
   error?: string;
   source?: DataSource;
-  sourceStatus?: MarketDataSourceStatus;
 }
 
 interface WatchlistQuoteRow extends WatchlistQuoteState {
@@ -24,14 +22,20 @@ interface WatchlistQuoteRow extends WatchlistQuoteState {
 }
 
 export interface WatchlistQuotes {
-  rows: Accessor<WatchlistQuoteRow[]>;
-  viewRows(
-    selectedSymbol: EquitySymbol,
-    selectedResult?: MarketDataSessionResult<EquityQuote>,
+  hydrateVisibleSymbols(): void;
+  rowViewModels(
+    selectedSymbol?: EquitySymbol,
+    selectedQuote?: WatchlistQuoteState,
   ): WatchlistItemViewModel[];
-  rememberQuote(result: MarketDataSessionResult<EquityQuote>): void;
-  loadQuote(symbol: EquitySymbol): Promise<MarketDataSessionResult<EquityQuote>>;
+  mergeSelectedQuoteUpdate(result: MarketDataSessionResult<EquityQuote>): void;
+  addVerifiedSymbol(symbol: EquitySymbol): Promise<MarketDataSessionResult<EquityQuote>>;
 }
+
+export interface WatchlistQuoteOptions {
+  maxConcurrentHydration?: number;
+}
+
+export const DEFAULT_WATCHLIST_QUOTE_CONCURRENCY = 2;
 
 function errorMessage(error: unknown) {
   if (error instanceof Error) {
@@ -48,11 +52,19 @@ function statusFor(state?: WatchlistQuoteState): FinancialDataStatus {
 export function createWatchlistQuotes(
   symbols: Accessor<EquitySymbol[]>,
   session: Pick<MarketDataSession, "quote">,
+  options: WatchlistQuoteOptions = {},
 ): WatchlistQuotes {
   const [states, setStates] = createSignal<Record<EquitySymbol, WatchlistQuoteState>>({});
   const [requested, setRequested] = createSignal<Set<EquitySymbol>>(new Set());
+  const maxConcurrentHydration = Math.max(
+    1,
+    Math.floor(options.maxConcurrentHydration ?? DEFAULT_WATCHLIST_QUOTE_CONCURRENCY),
+  );
+  const hydrationQueue: EquitySymbol[] = [];
+  const inFlightQuotes = new Map<EquitySymbol, Promise<MarketDataSessionResult<EquityQuote>>>();
+  let activeHydrationCount = 0;
 
-  function rememberQuote(result: MarketDataSessionResult<EquityQuote>) {
+  function mergeSelectedQuoteUpdate(result: MarketDataSessionResult<EquityQuote>) {
     const { data: quote } = result;
 
     setStates((currentStates) => ({
@@ -61,12 +73,17 @@ export function createWatchlistQuotes(
         quote,
         status: "ready",
         source: result.source,
-        sourceStatus: result.status,
       },
     }));
   }
 
-  async function loadQuote(symbol: EquitySymbol) {
+  function requestQuote(symbol: EquitySymbol) {
+    const inFlightQuote = inFlightQuotes.get(symbol);
+
+    if (inFlightQuote) {
+      return inFlightQuote;
+    }
+
     setStates((currentStates) => ({
       ...currentStates,
       [symbol]: {
@@ -76,26 +93,57 @@ export function createWatchlistQuotes(
       },
     }));
 
-    try {
-      const result = await session.quote(symbol);
-      rememberQuote(result);
+    const request = session
+      .quote(symbol)
+      .then((result) => {
+        mergeSelectedQuoteUpdate(result);
 
-      return result;
-    } catch (error) {
-      setStates((currentStates) => ({
-        ...currentStates,
-        [symbol]: {
-          ...currentStates[symbol],
-          status: "error",
-          error: errorMessage(error),
-        },
-      }));
+        return result;
+      })
+      .catch((error) => {
+        setStates((currentStates) => ({
+          ...currentStates,
+          [symbol]: {
+            ...currentStates[symbol],
+            status: "error",
+            error: errorMessage(error),
+          },
+        }));
 
-      throw error;
+        throw error;
+      })
+      .finally(() => {
+        inFlightQuotes.delete(symbol);
+      });
+
+    inFlightQuotes.set(symbol, request);
+
+    return request;
+  }
+
+  async function addVerifiedSymbol(symbol: EquitySymbol) {
+    return requestQuote(symbol);
+  }
+
+  function processHydrationQueue() {
+    while (activeHydrationCount < maxConcurrentHydration) {
+      const symbol = hydrationQueue.shift();
+
+      if (!symbol) {
+        return;
+      }
+
+      activeHydrationCount += 1;
+      void requestQuote(symbol)
+        .catch(() => undefined)
+        .finally(() => {
+          activeHydrationCount -= 1;
+          processHydrationQueue();
+        });
     }
   }
 
-  createEffect(() => {
+  function hydrateVisibleSymbols() {
     const currentStates = states();
     const currentRequested = requested();
     const missingSymbols = symbols().filter((symbol) => {
@@ -118,9 +166,12 @@ export function createWatchlistQuotes(
       return nextSymbols;
     });
 
-    for (const symbol of missingSymbols) {
-      void loadQuote(symbol).catch(() => undefined);
-    }
+    hydrationQueue.push(...missingSymbols);
+    processHydrationQueue();
+  }
+
+  createEffect(() => {
+    hydrateVisibleSymbols();
   });
 
   const rows = createMemo<WatchlistQuoteRow[]>(() =>
@@ -131,30 +182,29 @@ export function createWatchlistQuotes(
     })),
   );
 
-  function viewRows(
-    selectedSymbol: EquitySymbol,
-    selectedResult?: MarketDataSessionResult<EquityQuote>,
+  function rowViewModels(
+    selectedSymbol?: EquitySymbol,
+    selectedQuote?: WatchlistQuoteState,
   ): WatchlistItemViewModel[] {
     return rows().map((row) => {
       const selected = row.symbol === selectedSymbol;
-      const selectedQuote = selectedResult?.data;
-      const quote = selected ? (selectedQuote ?? row.quote) : row.quote;
+      const quote = selected ? (selectedQuote?.quote ?? row.quote) : row.quote;
 
       return {
         ...row,
         quote,
-        status: quote ? "ready" : row.status,
-        source: selected ? (selectedResult?.source ?? row.source) : row.source,
-        sourceStatus: selected ? (selectedResult?.status ?? row.sourceStatus) : row.sourceStatus,
+        status: quote ? "ready" : selected ? (selectedQuote?.status ?? row.status) : row.status,
+        error: selected ? (selectedQuote?.error ?? row.error) : row.error,
+        source: selected ? (selectedQuote?.source ?? row.source) : row.source,
         selected,
       };
     });
   }
 
   return {
-    rows,
-    viewRows,
-    rememberQuote,
-    loadQuote,
+    hydrateVisibleSymbols,
+    rowViewModels,
+    mergeSelectedQuoteUpdate,
+    addVerifiedSymbol,
   };
 }

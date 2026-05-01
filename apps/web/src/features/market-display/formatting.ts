@@ -1,8 +1,8 @@
+import { MARKET_TIME_ZONE } from "@/features/market-data/market-session";
 import type { TimeRange } from "@/features/market-data/types";
 
 const DEFAULT_LOCALE = "en-US";
 const DEFAULT_CURRENCY = "USD";
-const MARKET_TIME_ZONE = "America/New_York";
 const MARKET_TIMESTAMP_FORMATTER = new Intl.DateTimeFormat(DEFAULT_LOCALE, {
   hour: "2-digit",
   minute: "2-digit",

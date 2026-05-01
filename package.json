@@ -18,15 +18,13 @@
     "build": "turbo build",
     "check-types": "turbo check-types",
     "dev:web": "turbo -F web dev",
+    "bench:chart": "bun scripts/benchmark-price-history-view-model.ts",
     "check": "oxlint && oxfmt --write"
   },
-  "dependencies": {
-    "@flamel/env": "workspace:*",
-    "dotenv": "catalog:",
-    "zod": "catalog:"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@flamel/config": "workspace:*",
+    "@typescript/native-preview": "^7.0.0-dev.20260430.1",
     "oxfmt": "^0.46.0",
     "oxlint": "^1.61.0",
     "turbo": "^2.8.12",

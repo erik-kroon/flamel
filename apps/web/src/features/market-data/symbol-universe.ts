@@ -1,6 +1,27 @@
 import type { EquitySearchResult, EquitySymbol } from "./types";
 
-export const DEFAULT_SYMBOLS = ["AAPL", "AMZN", "GOOG", "META", "MSFT", "NVDA", "TSLA"] as const;
+export const DEFAULT_WATCHLIST_SYMBOLS = [
+  "AAPL",
+  "AMZN",
+  "GOOG",
+  "META",
+  "MSFT",
+  "NVDA",
+  "TSLA",
+] as const;
+
+export const FIXTURE_SYMBOLS = [
+  "AAPL",
+  "AMZN",
+  "GOOG",
+  "META",
+  "MSFT",
+  "NVDA",
+  "QQQ",
+  "SPY",
+  "TSLA",
+  "VOO",
+] as const;
 
 export const SEARCHABLE_US_EQUITIES: readonly EquitySearchResult[] = [
   { symbol: "AAPL", name: "Apple Inc.", exchange: "NASDAQ", currency: "USD" },
@@ -22,10 +43,10 @@ export const FIXTURE_SYMBOL_DETAILS = Object.fromEntries(
   ]),
 ) as Record<string, Omit<EquitySearchResult, "symbol">>;
 
-export function fixtureUniverseCopy(symbols: readonly EquitySymbol[] = DEFAULT_SYMBOLS) {
+export function fixtureUniverseCopy(symbols: readonly EquitySymbol[] = FIXTURE_SYMBOLS) {
   return symbols.join(", ");
 }
 
-export function unsupportedSymbolMessage(symbols: readonly EquitySymbol[] = DEFAULT_SYMBOLS) {
+export function unsupportedSymbolMessage(symbols: readonly EquitySymbol[] = FIXTURE_SYMBOLS) {
   return `Symbol not included in bundled fixture universe. Available: ${fixtureUniverseCopy(symbols)}.`;
 }

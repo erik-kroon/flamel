@@ -1,8 +1,8 @@
 import type {
   DataSource,
   EquityQuote,
+  EquitySearchResult,
   EquitySymbol,
-  MarketDataSourceStatus,
   PricePoint,
   TimeRange,
 } from "@/features/market-data/types";
@@ -15,12 +15,11 @@ export interface WatchlistItemViewModel {
   status: FinancialDataStatus;
   error?: string;
   source?: DataSource;
-  sourceStatus?: MarketDataSourceStatus;
   selected: boolean;
 }
 
 export interface SelectedEquityViewModel {
-  symbol: EquitySymbol;
+  symbol?: EquitySymbol;
   quote?: EquityQuote;
   history: PricePoint[];
   quoteStatus: FinancialDataStatus;
@@ -35,13 +34,15 @@ export interface FinancialDataWorkspaceViewModel {
   symbolInput: string;
   timeRange: TimeRange;
   dataSource?: DataSource;
-  fallbackReason?: string;
   intakeError?: string;
+  symbolSuggestions: EquitySearchResult[];
+  symbolSuggestionMessage?: string;
   providerError?: string;
   canAddSymbol: boolean;
   setSymbolInput(value: string): void;
-  addSymbol(): Promise<void>;
+  addSymbol(symbolInput?: string): Promise<void>;
   selectSymbol(symbol: EquitySymbol): void;
+  removeSymbol(symbol: EquitySymbol): void;
   setTimeRange(range: TimeRange): void;
   refresh(): void;
 }

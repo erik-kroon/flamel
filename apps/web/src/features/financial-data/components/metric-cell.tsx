@@ -11,18 +11,17 @@ export function MetricCell(props: {
   const priority = () => props.priority ?? "secondary";
   const valueTone = () => {
     if (props.loading) return "text-[var(--text-muted)]";
-    if (priority() === "secondary") return "text-[var(--text-secondary)]";
+    if (priority() === "strong") {
+      return props.positive ? "text-[var(--positive)]" : "text-[var(--negative)]";
+    }
+    if (priority() === "secondary") return "text-[var(--text-muted)]";
     return "text-[var(--text-primary)]";
   };
 
   return (
     <div
-      class={`min-w-0 border-l border-[color:rgb(255_255_255_/_4%)] px-3 first:border-l-0 sm:first:pl-0 ${
-        priority() === "secondary" ? "opacity-90" : ""
-      } ${
-        priority() === "secondary"
-          ? ""
-          : "rounded-sm bg-white/[0.025] py-1 shadow-[inset_0_1px_0_rgb(255_255_255_/_3%)]"
+      class={`min-w-0 border-l border-[color:rgb(255_255_255_/_2.5%)] px-3 first:border-l-0 sm:first:pl-0 ${
+        priority() === "secondary" ? "opacity-70" : "py-0.5"
       }`}
     >
       <p
@@ -35,17 +34,17 @@ export function MetricCell(props: {
       <p
         class={`financial-value mt-1 h-6 overflow-hidden text-ellipsis whitespace-nowrap ${
           priority() === "primary"
-            ? "text-lg font-bold"
+            ? "text-[1.35rem] font-bold"
             : priority() === "strong"
-              ? "text-lg font-semibold"
-              : "text-[0.95rem] font-medium"
+              ? "text-[1.0625rem] font-bold"
+              : "text-[0.875rem] font-medium"
         } ${valueTone()}`}
       >
         {props.value}
       </p>
       <Show when={props.subvalue}>
         <p
-          class={`financial-value mt-0.5 h-4 overflow-hidden text-ellipsis whitespace-nowrap text-xs font-medium ${
+          class={`financial-value mt-0.5 h-4 overflow-hidden text-ellipsis whitespace-nowrap text-xs font-semibold ${
             props.positive ? "text-[var(--positive)]" : "text-[var(--negative)]"
           }`}
         >

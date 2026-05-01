@@ -1,13 +1,21 @@
-const CHART_LABEL_MINIMUM_GAP = 5.2;
+const CHART_LABEL_MINIMUM_GAP = 6.4;
 const CHART_LABEL_MINIMUM_TOP = 7;
 const CHART_LABEL_MAXIMUM_TOP = 90;
+const CHART_LAST_LABEL_PATH_ZONE_X = 86;
 
-type ChartReferenceLabelKey = "last" | "previousClose" | "open";
+type ChartReferenceLabelKey = "last" | "previousClose";
 
 export type ChartAnnotationLayout = {
   referenceLabelY: Partial<Record<ChartReferenceLabelKey, number>>;
   referenceLabelVisible: Record<ChartReferenceLabelKey, boolean>;
   axisLabelVisible: boolean[];
+};
+
+export type ChartTooltipPosition = {
+  bottom?: string;
+  left?: string;
+  right?: string;
+  top?: string;
 };
 
 function clampPercent(value: number) {
@@ -16,6 +24,13 @@ function clampPercent(value: number) {
 
 function labelCollides(a: number, b: number, gap = CHART_LABEL_MINIMUM_GAP) {
   return Math.abs(a - b) < gap;
+}
+
+function lastLabelCollidesWithRightEdgePath(
+  y: number,
+  path: readonly { x: number; y: number }[] = [],
+) {
+  return path.some((point) => point.x >= CHART_LAST_LABEL_PATH_ZONE_X && labelCollides(y, point.y));
 }
 
 function labelPositionCandidates(anchorY: number, maxShift: number) {
@@ -29,55 +44,40 @@ function labelPositionCandidates(anchorY: number, maxShift: number) {
     .filter(
       (candidate) => candidate >= CHART_LABEL_MINIMUM_TOP && candidate <= CHART_LABEL_MAXIMUM_TOP,
     )
-    .toSorted((a, b) => Math.abs(a - anchorY) - Math.abs(b - anchorY));
+    .sort((a, b) => Math.abs(a - anchorY) - Math.abs(b - anchorY));
 }
 
 export function chartAnnotationLayout(referenceY: {
   last: number;
   previousClose?: number;
-  open?: number;
   axis: readonly { top: number }[];
+  pricePath?: readonly { x: number; y: number }[];
 }): ChartAnnotationLayout {
   const labels: Array<{
     key: ChartReferenceLabelKey;
     y: number;
     maxShift: number;
-    requiredGap?: number;
   }> = [
     { key: "last", y: referenceY.last, maxShift: 16 },
     ...(referenceY.previousClose === undefined
       ? []
       : [{ key: "previousClose" as const, y: referenceY.previousClose, maxShift: 10 }]),
-    ...(referenceY.open === undefined
-      ? []
-      : [
-          {
-            key: "open" as const,
-            y: referenceY.open,
-            maxShift: 7,
-            requiredGap: CHART_LABEL_MINIMUM_GAP,
-          },
-        ]),
   ];
   const placed: Array<{ key: ChartReferenceLabelKey; y: number }> = [];
   const referenceLabelY: Partial<Record<ChartReferenceLabelKey, number>> = {};
   const referenceLabelVisible: Record<ChartReferenceLabelKey, boolean> = {
     last: false,
     previousClose: false,
-    open: false,
   };
 
   for (const label of labels) {
-    if (
-      label.requiredGap !== undefined &&
-      placed.some((placedLabel) => labelCollides(label.y, placedLabel.y, label.requiredGap))
-    ) {
+    if (label.key === "last" && lastLabelCollidesWithRightEdgePath(label.y, referenceY.pricePath)) {
       continue;
     }
 
-    const labelY = labelPositionCandidates(label.y, label.maxShift).find((candidate) =>
-      placed.every((placedLabel) => !labelCollides(candidate, placedLabel.y)),
-    );
+    const labelY = labelPositionCandidates(label.y, label.maxShift).find((candidate) => {
+      return placed.every((placedLabel) => !labelCollides(candidate, placedLabel.y));
+    });
 
     if (labelY === undefined && label.key !== "last") continue;
 
@@ -90,8 +90,20 @@ export function chartAnnotationLayout(referenceY: {
   return {
     referenceLabelY,
     referenceLabelVisible,
-    axisLabelVisible: referenceY.axis.map((axisLabel) =>
-      placed.every((label) => !labelCollides(axisLabel.top, label.y, CHART_LABEL_MINIMUM_GAP + 1)),
-    ),
+    axisLabelVisible: referenceY.axis.map(() => true),
+  };
+}
+
+export function chartTooltipPosition(point: { x: number; y: number }): ChartTooltipPosition {
+  const horizontalGap = "1rem";
+  const verticalGap = "1rem";
+
+  return {
+    ...(point.x > 50
+      ? { right: `calc(${100 - clampPercent(point.x)}% + ${horizontalGap})` }
+      : { left: `calc(${clampPercent(point.x)}% + ${horizontalGap})` }),
+    ...(point.y > 50
+      ? { bottom: `calc(${100 - clampPercent(point.y)}% + ${verticalGap})` }
+      : { top: `calc(${clampPercent(point.y)}% + ${verticalGap})` }),
   };
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { MarketDataNotFoundError } from "../types";
-import { DEFAULT_SYMBOLS } from "../symbol-universe";
+import { DEFAULT_WATCHLIST_SYMBOLS } from "../symbol-universe";
 import { MockMarketDataProvider, SUPPORTED_MOCK_SYMBOLS } from "../providers/mock-market-data";
 
 describe("MockMarketDataProvider", () => {
@@ -23,7 +23,15 @@ describe("MockMarketDataProvider", () => {
       "VOO",
       "VOLV-B.ST",
     ]);
-    expect(DEFAULT_SYMBOLS).toEqual(["AAPL", "AMZN", "GOOG", "META", "MSFT", "NVDA", "TSLA"]);
+    expect(DEFAULT_WATCHLIST_SYMBOLS).toEqual([
+      "AAPL",
+      "AMZN",
+      "GOOG",
+      "META",
+      "MSFT",
+      "NVDA",
+      "TSLA",
+    ]);
   });
 
   it("returns deterministic quotes for known symbols", async () => {

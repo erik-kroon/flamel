@@ -2,9 +2,7 @@ export type EquitySymbol = string;
 
 export type TimeRange = "1D" | "1W" | "1M";
 
-export type DataSource = "mock" | "massive" | "databento";
-
-export type MarketDataSourceStatus = "primary" | "fallback";
+export type DataSource = "mock" | "databento";
 
 export interface EquitySearchResult {
   symbol: EquitySymbol;
@@ -65,12 +63,15 @@ export interface MarketDataProvider {
 export interface MarketDataSessionResult<TData> {
   data: TData;
   source: DataSource;
-  status: MarketDataSourceStatus;
-  fallbackReason?: string;
 }
 
 export interface MarketDataSession {
   search(query: string): Promise<MarketDataSessionResult<EquitySearchResult[]>>;
   quote(symbol: EquitySymbol): Promise<MarketDataSessionResult<EquityQuote>>;
   history(symbol: EquitySymbol, range: TimeRange): Promise<MarketDataSessionResult<PricePoint[]>>;
+}
+
+export interface SymbolIntakePolicy {
+  fixtureSymbols: readonly EquitySymbol[];
+  unsupportedMessage: string;
 }

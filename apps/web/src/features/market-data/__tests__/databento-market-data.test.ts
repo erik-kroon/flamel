@@ -1,147 +1,140 @@
 import { describe, expect, it, vi } from "vitest";
-import { parseWebEnv } from "@flamel/env/web";
 
+import { createMarketDataSession } from "../providers/provider-factory";
+import { DatabentoExportMarketDataProvider } from "../providers/databento-market-data";
 import {
-  createMarketDataProvider,
-  DATABENTO_API_KEY_ENV,
-  DATABENTO_EXPORT_URL_ENV,
-} from "../providers/provider-factory";
-import {
-  DatabentoExportMarketDataProvider,
-  DatabentoMarketDataProvider,
-  mapDatabentoHistory,
-  mapDatabentoQuote,
-  planDatabentoHistoryRequest,
-  planDatabentoQuoteRequest,
-  type DatabentoHistoricalClient,
-  type DatabentoOhlcvRecord,
-} from "../providers/databento-market-data";
+  aggregateDatabentoFixtureBars,
+  mapDatabentoFixtureHistory,
+  parseDatabentoFixtureFile,
+  parseDatabentoOhlcvBar,
+} from "../databento-fixture";
 
-const records: DatabentoOhlcvRecord[] = [
-  {
-    hd: { ts_event: "2026-04-28T20:00:00.000000000Z" },
-    open: "205.00",
-    high: "208.00",
-    low: "204.00",
-    close: "207.00",
-    volume: "1000",
-    symbol: "AAPL",
-  },
-  {
-    hd: { ts_event: "2026-04-29T20:00:00.000000000Z" },
-    open: "207.50",
-    high: "211.00",
-    low: "206.50",
-    close: "210.00",
-    volume: "1200",
-    symbol: "AAPL",
-  },
-];
-
-function createClient(): DatabentoHistoricalClient {
-  return {
-    getRange: vi.fn(async () => records),
-  };
-}
-
-describe("DatabentoMarketDataProvider", () => {
-  it("plans historical requests for Databento HTTP timeseries", () => {
-    const today = new Date("2026-04-30T12:00:00.000Z");
-
-    expect(planDatabentoHistoryRequest("aapl", "1D", today)).toEqual({
-      dataset: "XNAS.ITCH",
-      symbols: "AAPL",
-      schema: "ohlcv-1m",
-      start: "2026-04-29T12:00:00.000Z",
-      end: "2026-04-30T12:00:00.000Z",
-      stype_in: "raw_symbol",
-      stype_out: "raw_symbol",
-      encoding: "json",
-      compression: "none",
-      pretty_px: "true",
-      pretty_ts: "true",
-      map_symbols: "true",
-      limit: 390,
-    });
-    expect(planDatabentoHistoryRequest("aapl", "1W", today)).toMatchObject({
-      schema: "ohlcv-1m",
-      start: "2026-04-23T12:00:00.000Z",
-      limit: 2200,
-    });
-    expect(planDatabentoQuoteRequest("aapl", today)).toMatchObject({
-      schema: "ohlcv-1m",
-      start: "2026-04-20T12:00:00.000Z",
-      limit: 2,
-    });
-  });
-
-  it("maps Databento OHLCV records into app quote and history models", () => {
-    expect(mapDatabentoHistory(records)).toEqual([
-      {
-        timestamp: "2026-04-28T20:00:00.000Z",
-        value: 207,
-        open: 205,
-        high: 208,
-        low: 204,
-        close: 207,
-        volume: 1000,
-      },
-      {
-        timestamp: "2026-04-29T20:00:00.000Z",
-        value: 210,
-        open: 207.5,
-        high: 211,
-        low: 206.5,
-        close: 210,
-        volume: 1200,
-      },
-    ]);
-    expect(mapDatabentoHistory(records, "1W")).toEqual([
-      {
-        timestamp: "2026-04-28T20:00:00.000Z",
-        value: 207,
-        open: 205,
-        high: 208,
-        low: 204,
-        close: 207,
-        volume: 1000,
-      },
-      {
-        timestamp: "2026-04-29T20:00:00.000Z",
-        value: 210,
-        open: 207.5,
-        high: 211,
-        low: 206.5,
-        close: 210,
-        volume: 1200,
-      },
-    ]);
-    expect(mapDatabentoQuote("aapl", records)).toMatchObject({
+describe("Databento fixture market data", () => {
+  it("normalizes raw Databento OHLCV records through the fixture parser", () => {
+    expect(
+      parseDatabentoOhlcvBar({
+        hd: { ts_event: "2026-04-29T20:00:00.000000000Z" },
+        open: "207.515",
+        high: "211.004",
+        low: "206.499",
+        close: "210.001",
+        volume: "1200",
+        symbol: "AAPL",
+      }),
+    ).toEqual({
       symbol: "AAPL",
-      name: "Apple Inc.",
-      lastPrice: 210,
-      previousClose: 207,
-      change: 3,
-      source: "databento",
-      updatedAt: "2026-04-29T20:00:00.000Z",
+      bar: {
+        timestamp: "2026-04-29T20:00:00.000Z",
+        open: 207.51,
+        high: 211,
+        low: 206.5,
+        close: 210,
+        volume: 1200,
+      },
     });
   });
 
-  it("loads and caches quotes and history through the Databento client", async () => {
-    const client = createClient();
-    const provider = new DatabentoMarketDataProvider({
-      client,
-      today: new Date("2026-04-30T12:00:00.000Z"),
+  it("aggregates Databento fixture bars without losing OHLCV semantics", () => {
+    expect(
+      aggregateDatabentoFixtureBars(
+        [
+          {
+            timestamp: "2026-04-29T20:00:00.000Z",
+            open: 100,
+            high: 102,
+            low: 99,
+            close: 101,
+            volume: 10,
+          },
+          {
+            timestamp: "2026-04-29T20:01:00.000Z",
+            open: 101,
+            high: 105,
+            low: 100,
+            close: 104,
+            volume: 15,
+          },
+        ],
+        5 * 60 * 1000,
+      ),
+    ).toEqual([
+      {
+        timestamp: "2026-04-29T20:00:00.000Z",
+        open: 100,
+        high: 105,
+        low: 99,
+        close: 104,
+        volume: 25,
+      },
+    ]);
+  });
+
+  it("parses and maps the compact Databento fixture schema", () => {
+    const fixture = parseDatabentoFixtureFile({
+      source: "databento",
+      dataset: "XNAS.ITCH",
+      schema: "app-chart-fixture-v1",
+      requestId: "test",
+      equities: [
+        {
+          symbol: "AAPL",
+          name: "Apple Inc.",
+          exchange: "NASDAQ",
+          currency: "USD",
+          previousClose: 207,
+          quote: {
+            timestamp: "2026-04-29T20:00:00.000Z",
+            open: 207.5,
+            high: 211,
+            low: 206.5,
+            close: 210,
+            volume: 1200,
+          },
+          history: {
+            "1D": {
+              granularity: "1m",
+              session: "extended",
+              bars: [
+                {
+                  timestamp: "2026-04-29T20:00:00.000Z",
+                  open: 207.5,
+                  high: 211,
+                  low: 206.5,
+                  close: 210,
+                  volume: 1200,
+                },
+              ],
+            },
+            "1W": [{ timestamp: "2026-04-29T20:00:00.000Z", value: 210 }],
+            "1M": [{ timestamp: "2026-04-29T20:00:00.000Z", value: 210 }],
+          },
+        },
+      ],
     });
 
-    const firstQuote = await provider.quote("aapl");
-    const secondQuote = await provider.quote("AAPL");
-    const firstHistory = await provider.history("aapl", "1W");
-    const secondHistory = await provider.history("AAPL", "1W");
-
-    expect(firstQuote).toBe(secondQuote);
-    expect(firstHistory).toBe(secondHistory);
-    expect(client.getRange).toHaveBeenCalledTimes(2);
+    expect(mapDatabentoFixtureHistory(fixture.equities[0]?.history["1D"])).toEqual([
+      {
+        timestamp: "2026-04-29T20:00:00.000Z",
+        value: 210,
+        open: 207.5,
+        high: 211,
+        low: 206.5,
+        close: 210,
+        volume: 1200,
+      },
+    ]);
+    expect(() =>
+      parseDatabentoFixtureFile({
+        source: "databento",
+        dataset: "XNAS.ITCH",
+        schema: "app-chart-fixture-v1",
+        requestId: "test",
+        equities: [],
+      }),
+    ).not.toThrow();
+    expect(() => parseDatabentoFixtureFile({ source: "mock", equities: [] })).toThrow(
+      "Databento fixture source must be databento.",
+    );
   });
 
   it("loads quote, history, and search data from the compact Databento export", async () => {
@@ -207,24 +200,27 @@ describe("DatabentoMarketDataProvider", () => {
     vi.unstubAllGlobals();
   });
 
-  it("selects Databento before Massive when a Databento key is configured", () => {
-    const selection = createMarketDataProvider(
-      parseWebEnv({
-        [DATABENTO_API_KEY_ENV]: "test-key",
-      }),
-    );
+  it("keeps the startup watchlist separate from the full fixture intake universe", () => {
+    const selection = createMarketDataSession();
 
-    expect(selection.configuredSource).toBe("databento");
+    expect(selection.symbolIntakePolicy.fixtureSymbols).toEqual([
+      "AAPL",
+      "AMZN",
+      "GOOG",
+      "META",
+      "MSFT",
+      "NVDA",
+      "QQQ",
+      "SPY",
+      "TSLA",
+      "VOO",
+    ]);
+    expect(selection.symbolIntakePolicy.unsupportedMessage).toContain("QQQ");
+    expect(selection.symbolIntakePolicy.unsupportedMessage).toContain("SPY");
+    expect(selection.symbolIntakePolicy.unsupportedMessage).toContain("VOO");
   });
 
-  it("selects a Databento export before hosted providers when configured", () => {
-    const selection = createMarketDataProvider(
-      parseWebEnv({
-        [DATABENTO_EXPORT_URL_ENV]: "/data/databento-export.json",
-        [DATABENTO_API_KEY_ENV]: "test-key",
-      }),
-    );
-
-    expect(selection.configuredSource).toBe("databento");
+  it("always selects the bundled Databento fixture provider", () => {
+    expect(createMarketDataSession().configuredSource).toBe("databento");
   });
 });
