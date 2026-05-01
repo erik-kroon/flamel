@@ -1,4 +1,5 @@
-import { AlertTriangle, X } from "lucide-solid";
+import AlertTriangle from "lucide-solid/icons/alert-triangle";
+import X from "lucide-solid/icons/x";
 import { createMemo, createSignal, For, Show } from "solid-js";
 
 import {

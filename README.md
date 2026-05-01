@@ -4,6 +4,10 @@ Flamel is a focused equity market workspace for inspecting historical equity dat
 
 The app is built with SolidJS and TypeScript. It uses a committed Databento-derived local fixture, so reviewers can run the project without API credentials while still seeing real historical OHLCV data.
 
+## Screenshot
+
+![Flamel financial data workspace](docs/application-screenshot.png)
+
 ## What It Does
 
 - Add supported stock and ETF symbols to a watchlist.

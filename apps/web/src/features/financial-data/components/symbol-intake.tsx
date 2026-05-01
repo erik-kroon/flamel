@@ -1,4 +1,4 @@
-import { Plus } from "lucide-solid";
+import Plus from "lucide-solid/icons/plus";
 import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
 
 import type { EquitySearchResult, EquitySymbol } from "@/features/market-data/types";

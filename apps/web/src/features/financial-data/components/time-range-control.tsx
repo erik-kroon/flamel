@@ -1,4 +1,4 @@
-import { RefreshCw } from "lucide-solid";
+import RefreshCw from "lucide-solid/icons/refresh-cw";
 import { For } from "solid-js";
 
 import type { TimeRange } from "@/features/market-data/types";
