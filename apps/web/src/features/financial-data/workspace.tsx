@@ -201,19 +201,10 @@ export function FinancialDataWorkspace() {
   return (
     <>
       <main
-        class="h-dvh min-h-0 w-full overflow-x-hidden overflow-y-auto bg-[var(--surface-app)] text-[var(--text-primary)]"
+        class="h-dvh min-h-0 w-full overflow-x-hidden overflow-y-auto bg-[var(--surface-app)] text-[var(--text-primary)] xl:overflow-hidden"
         id="financial-data-content"
       >
-        <div class="border-b border-[var(--border-hairline)] bg-[var(--surface-panel)]">
-          <img
-            alt="Zpace interface screenshot"
-            class="block h-auto max-h-[42vh] w-full object-cover object-top"
-            height="1864"
-            src="/zpace.png"
-            width="2784"
-          />
-        </div>
-        <section class="grid min-h-full w-full min-w-0 gap-0 lg:grid-cols-[340px_minmax(0,1fr)] xl:min-h-[calc(100dvh-42vh)] xl:grid-cols-[340px_minmax(0,1fr)_264px] 2xl:grid-cols-[360px_minmax(0,1fr)_284px]">
+        <section class="grid min-h-full w-full min-w-0 gap-0 lg:grid-cols-[340px_minmax(0,1fr)] xl:h-full xl:min-h-0 xl:grid-cols-[340px_minmax(0,1fr)_264px] 2xl:grid-cols-[360px_minmax(0,1fr)_284px]">
           <aside
             aria-label="Watchlist"
             class="flex min-h-0 min-w-0 flex-col border-b border-white/10 p-4 lg:border-b-0 lg:border-r lg:border-white/10 lg:px-5 lg:py-4 xl:overflow-hidden"
